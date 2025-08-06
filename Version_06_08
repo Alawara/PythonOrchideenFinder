@@ -1,0 +1,51 @@
+import requests
+import pandas 
+
+
+def Suchgebiet(lat, lon, toleranz =0.1):
+    # toleranz ~ entspricht ca. 10 km (je nach Breitengrad)
+    min_lat = lat - toleranz
+    max_lat = lat + toleranz
+    min_lon = lon - toleranz
+    max_lon = lon + toleranz
+    return f"POLYGON(({min_lon} {min_lat}, {min_lon} {max_lat}, {max_lon} {max_lat}, {max_lon} {min_lat}, {min_lon} {min_lat}))"
+
+
+def hole_Orchideen(lat, lon, radius_meter =100, limit=10):
+    url = "https://api.gbif.org/v1/occurrence/search"
+    geometry = Suchgebiet(lat, lon, toleranz=0.9)  # ~20 km
+    parameter = {
+        "taxonKey": 7689,  # TaxonKey steht in der adresszeile wenn man die Pflanze in GBIF sucht.2503 sind z.B. die Enziane.  
+        "hasCoordinate": "true",
+        "lat": lat,
+        "lon": lon,
+        "radius": radius_meter,  
+        "limit": limit,
+        "geometry": geometry
+        #"country": "DE"    # ohne diesen Zusatz kam ich irgendwo in Schweden raus. Er scheint aber auch allgemein die Koordinaten nicht zu benutzen. 
+       # Das mit den Koordinaten geht allgemein nicht, man muss eine "Box" definieren, innerhalb derer gesucht wird, und das als "geometry" übergeben.  
+    }
+    response = requests.get(url, params=parameter)
+    data = response.json()["results"]
+    
+    print("[GBIF URL]:", response.url)
+
+    records = []
+    for item in data:
+        records.append({
+            "species": item.get("species"),
+            "scientificName": item.get("scientificName"),
+            "eventDate": item.get("eventDate"),
+            "decimalLatitude": item.get("decimalLatitude"),
+            "decimalLongitude": item.get("decimalLongitude"),
+            "locality": item.get("locality"),
+            "Rechteinhaberin": item.get("rightsHolder"),
+            "Höhe ü. d. M.": item.get("elevation")
+        })
+    print(f"Koordinaten: Breitengrad={lat}, Längengrad={lon}")
+    return pandas.DataFrame(records)
+
+# Koordinaten eingeben
+Ergebnisse = hole_Orchideen(lat=46.5354, lon=7.95)
+print(Ergebnisse.head(10))   # Ich möchte 10 Ergebnisse angezeigt bekommen. Der Standardwert, wenn man nichts eingibt ist 5, das ist mir zu wenig. 
+
